@@ -1,10 +1,17 @@
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "./firebase.js";
+import { collection, getDocs, where, query} from "firebase/firestore";
+import { db, auth } from "./firebase.js";
 
 export async function filterAndDisplayBooks(searchText, selectedGenre, bookList) {
+  //ensuring user is signed in
+  const user = auth.currentUser;
+  if (!user) {
+    console.error("User is not signed in");
+    return;
+  }
   try {
     const booksCollection = collection(db, "books");
-    const snapshot = await getDocs(booksCollection);
+    const q = query(booksCollection, where("email", "==", user.email.toLowerCase()));
+    const snapshot = await getDocs(q);
     const books = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     
     // If no filters, show all books:
