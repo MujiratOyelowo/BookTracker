@@ -4,36 +4,31 @@ import { loadBooks, initializeModals, showEditModal, showDeleteModal, addBook } 
 import { filterAndDisplayBooks } from "./filterBooks.js";
 import { initializeChatbot, askChatBot, handleLocalCommands } from "./chatbot.js";
 
-// Initialize chatbot or any other global features
 initializeChatbot();
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Initialize modals for editing/deleting books
   initializeModals();
 
-  // Grabbing DOM elements
-  
+  // Grab DOM elements
+  const chatHistory = document.getElementById("chat-history");
+  const chatInput = document.getElementById("chat-input");
   const sendBtn = document.getElementById("send-btn");
   const bookList = document.getElementById("bookList");
   const organizeBySelect = document.getElementById("organizeBy");
   const bookForm = document.getElementById("bookForm");
   const searchBar = document.getElementById("searchBar");
   const filterGenre = document.getElementById("filterGenre");
-  const closeBtn = document.getElementById("chat-close-btn");
-
-  //chatbot elements
   const chatWidget = document.getElementById("chat-widget");
   const chatCircle = document.getElementById("chat-circle");
-  const chatHistory = document.getElementById("chat-history");
-  const chatInput = document.getElementById("chat-input");
-  
+  const closeBtn = document.getElementById("chat-close-btn");
+
   // Sign-out modal elements
   const signOutBttn = document.getElementById("signOutBttn");
   const signOutModal = document.getElementById("signOutModal");
   const confirmSignOut = document.getElementById("confirmSignOut");
   const cancelSignOut = document.getElementById("cancelSignOut");
 
-  // Chat UI Logic ---
+  // --- Chat UI Logic ---
   function appendMessage(text, sender = "bot") {
     const msgDiv = document.createElement("div");
     msgDiv.classList.add("chat-message", sender === "user" ? "user-message" : "bot-message");
@@ -48,11 +43,9 @@ document.addEventListener("DOMContentLoaded", () => {
     appendMessage(userInput, "user");
     chatInput.value = "";
 
-    // Trying local commands first
     const handled = await handleLocalCommands(userInput, appendMessage);
     if (handled) return;
 
-    // Otherwise, send to AI
     const botReply = await askChatBot(userInput);
     appendMessage(botReply, "bot");
   });
@@ -61,22 +54,53 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") sendBtn.click();
   });
 
-  // Book Form Logic
+  // --- Book Form Logic with Validation ---
   if (bookForm) {
     bookForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+
+      // Clear previous error messages
+      document.querySelectorAll(".error-message").forEach(msg => msg.textContent = "");
+
+      let valid = true;
       const title = document.getElementById("title").value.trim();
       const author = document.getElementById("author").value.trim();
       const genre = document.getElementById("genre").value;
-      const rating = document.getElementById("rating").value;
-      if (title && author && genre && rating) {
-        await addBook(title, author, genre, rating);
-        bookForm.reset();
+      const rating = document.getElementById("rating").value.trim();
+
+      // Validate Title
+      if (!title) {
+        document.getElementById("titleError").textContent = "Title is required";
+        valid = false;
       }
+      // Validate Author
+      if (!author) {
+        document.getElementById("authorError").textContent = "Author is required";
+        valid = false;
+      }
+      // Validate Genre
+      if (!genre) {
+        document.getElementById("genreError").textContent = "Please select a genre";
+        valid = false;
+      }
+      // Validate Rating: must be a number between 1 and 5
+      const ratingValue = parseFloat(rating);
+      if (!rating) {
+        document.getElementById("ratingError").textContent = "Rating is required";
+        valid = false;
+      } else if (isNaN(ratingValue) || ratingValue < 1 || ratingValue > 5) {
+        document.getElementById("ratingError").textContent = "Rating must be between 1 and 5";
+        valid = false;
+      }
+      
+      if (!valid) return; // Stop if validation fails
+
+      await addBook(title, author, genre, rating);
+      bookForm.reset();
     });
   }
 
-  //Book List Logic (Edit/Delete) ---
+  // --- Book List Logic (Edit/Delete) ---
   bookList.addEventListener("click", (e) => {
     if (e.target.classList.contains("edit-btn")) {
       const bookId = e.target.getAttribute("data-id");
@@ -93,12 +117,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Filter Logic
+  // --- Filter Logic ---
   async function applyFilters() {
     const searchText = searchBar.value.toLowerCase();
     const selectedGenre = filterGenre.value;
     await filterAndDisplayBooks(searchText, selectedGenre, bookList);
   }
+
   if (searchBar) {
     searchBar.addEventListener("input", applyFilters);
   }
@@ -106,7 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
     filterGenre.addEventListener("change", applyFilters);
   }
 
-  // Chat widget open/close
+  // --- Chat Widget Logic ---
   chatCircle.addEventListener("click", () => {
     chatWidget.classList.toggle("chat-widget-open");
   });
@@ -114,27 +139,27 @@ document.addEventListener("DOMContentLoaded", () => {
     chatWidget.classList.remove("chat-widget-open");
   });
 
-  // onAuthStateChanged to ensure correct user is loaded
+  // --- onAuthStateChanged ---
   onAuthStateChanged(auth, (user) => {
     if (user) {
       console.log("User signed in:", user.email);
-      // Load the current user's books
       loadBooks();
     } else {
       console.log("No user is signed in");
+      // Optionally redirect to the sign-in page
+      // window.location.href = "index.html";
     }
   });
+
   applyFilters();
 
-  // Sign Out Flow with Confirmation Modal
+  // --- Sign Out Flow with Confirmation Modal ---
   signOutBttn.addEventListener("click", () => {
-    // Show the sign-out confirmation modal
     signOutModal.style.display = "block";
   });
 
   confirmSignOut.addEventListener("click", async () => {
     try {
-      // Sign out from Firebase
       await signOut(auth);
       window.location.href = "index.html";
     } catch (error) {
